@@ -206,17 +206,59 @@ impl TwitchConnection {
     }
 
     fn parse_twitch_message(message: &str) -> IRCMessage {
-        // Parse a message from the server into an IRCMessage
+        // Initialize a new IRCMessage with default values
         let mut msg = IRCMessage {
             ..Default::default()
         };
+
+        // Split the message into parts by ':', and collect the parts into a vector
         let mut message_split = message
             .splitn(3, ':')
             .map(|s| s.to_owned())
             .collect::<Vec<String>>();
 
-        // Handle different cases based on the number of elements in message_split and whether the message starts with ':'
-        // ...
+        // If the message has less than 3 parts and does not start with ':', set the command and sender fields of the context
+        if message_split.len() < 3 && !message.starts_with(':') {
+            msg.context.command = message_split.get(0).unwrap_or(&"".to_string()).to_owned();
+            msg.context.sender = message_split.get(1).unwrap_or(&"".to_string()).to_owned();
+            msg.context.receiver = "*".to_string();
+            return msg;
+        }
+
+        // If the message has less than 3 parts and starts with ':', add an empty string to the end of the vector
+        if message_split.len() < 3 && message.starts_with(':') {
+            message_split.push("".to_string());
+        }
+
+        // Set the tags field of the message
+        msg.tags = message_split.get(0).unwrap_or(&"".to_string()).to_owned();
+
+        // Set the context field of the message
+        msg.context = message_split
+            .get(1) // Use the second element or None if no elements
+            .map(|s| {
+                let mut context = Context {
+                    ..Default::default()
+                };
+                // Split the second part of the message by ' '
+                let mut split = s.split(' ');
+                // Set the sender, command, and receiver fields of the context
+                context.sender = split
+                    .next()
+                    .unwrap_or_default()
+                    .to_owned()
+                    .split('!')
+                    .next()
+                    .unwrap_or_default()
+                    .to_owned();
+                context.command = split.next().unwrap_or_default().to_owned();
+                context.receiver = split.next().unwrap_or_default().to_owned();
+                context
+            })
+            .unwrap_or_default();
+
+        // Set the message field of the message
+        msg.message = message_split.get(2).unwrap_or(&"".to_string()).to_owned();
 
         msg
     }
