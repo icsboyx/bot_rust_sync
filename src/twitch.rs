@@ -52,9 +52,6 @@ impl TwitchCapabilitiesEnum {
     }
 }
 
-struct TwitchCapabilities {
-    capabilities: Vec<TwitchCapabilitiesEnum>,
-}
 struct TwitchConnection {
     stream: TcpStream,
     callbacks: Arc<Mutex<TwitchCallbacks>>,
