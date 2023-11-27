@@ -158,13 +158,13 @@ pub fn run(config: Config) {
     }
     twitch.keep_alive(60.0);
 
-    twitch.callbacks.lock().unwrap().privmsg_callback = Some(may_privmsg_callback);
+    twitch.callbacks.lock().unwrap().privmsg_callback = Some(my_privmsg_callback);
     twitch.callbacks.lock().unwrap().custom_callback = Some(my_custom_callback);
-    twitch.callbacks.lock().unwrap().whisper_callback = Some(may_whisper_callback);
-    twitch.callbacks.lock().unwrap().ping_callback = Some(may_ping_callback);
+    twitch.callbacks.lock().unwrap().whisper_callback = Some(my_whisper_callback);
+    twitch.callbacks.lock().unwrap().ping_callback = Some(my_ping_callback);
 }
 
-fn may_privmsg_callback(payload: &IRCMessage) {
+fn my_privmsg_callback(payload: &IRCMessage) {
     println!("[BOT] External callback {}", payload.message)
 }
 
@@ -178,10 +178,10 @@ fn my_custom_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
     }
 }
 
-fn may_whisper_callback(payload: &IRCMessage) {
+fn my_whisper_callback(payload: &IRCMessage) {
     println!("[BOT] External callback {}", payload.message)
 }
 
-fn may_ping_callback(payload: &str) {
+fn my_ping_callback(payload: &str) {
     println!("[BOT] External callback {}", payload)
 }
