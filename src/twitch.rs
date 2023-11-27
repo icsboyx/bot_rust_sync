@@ -1,3 +1,12 @@
+macro_rules! create_twitch_connection {
+    ($stream:expr, $callbacks:expr) => {
+        &mut TwitchConnection {
+            stream: $stream.try_clone().unwrap(),
+            callbacks: $callbacks.clone(),
+        }
+    };
+}
+
 use crate::config::Config;
 use std::{
     io::{Read, Write},
@@ -22,10 +31,21 @@ struct IRCMessage {
 }
 #[derive(Debug, Default)]
 pub struct TwitchCallbacks {
-    ping_callback: Option<fn(&str)>,
-    privmsg_callback: Option<fn(&IRCMessage)>,
-    whisper_callback: Option<fn(&IRCMessage)>,
+    ping_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
+    privmsg_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
+    whisper_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
     custom_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
+}
+impl TwitchCallbacks {
+    fn iter(&self) -> impl Iterator<Item = &Option<fn(&mut TwitchConnection, &IRCMessage)>> {
+        vec![
+            &self.ping_callback,
+            &self.privmsg_callback,
+            &self.whisper_callback,
+            &self.custom_callback,
+        ]
+        .into_iter()
+    }
 }
 
 struct TwitchConnection {
@@ -41,7 +61,8 @@ impl TwitchConnection {
         let callbacks = Arc::new(Mutex::new(TwitchCallbacks {
             ..Default::default()
         }));
-        let stream_int_custom_callback = stream_int.try_clone().unwrap();
+
+        let stream_int_callback = stream_int.try_clone().unwrap();
         let callbacks_int = callbacks.clone();
 
         thread::spawn(move || {
@@ -53,24 +74,67 @@ impl TwitchConnection {
                         for line in String::from_utf8_lossy(&buffer[0..n - 2]).split("\r\n") {
                             println!(" [Twitch] RAW: {}", line);
                             let message = Self::parse_twitch_message(line);
-                            if let Some(callback) = &callbacks_int.lock().unwrap().custom_callback {
-                                callback(
-                                    &mut TwitchConnection {
-                                        stream: stream_int_custom_callback.try_clone().unwrap(),
-                                        callbacks: callbacks_int.clone(),
-                                    },
+
+                            if callbacks_int.lock().unwrap().custom_callback.is_some() {
+                                callbacks_int
+                                    .lock()
+                                    .unwrap()
+                                    .custom_callback
+                                    .as_ref()
+                                    .unwrap()(
+                                    create_twitch_connection!(stream_int_callback, callbacks_int),
                                     &message,
                                 );
                             }
                             match message.context.command.as_str() {
                                 "PRIVMSG" => {
-                                    if let Some(callback) =
-                                        &callbacks_int.lock().unwrap().privmsg_callback
-                                    {
-                                        callback(&message);
+                                    if callbacks_int.lock().unwrap().privmsg_callback.is_some() {
+                                        callbacks_int
+                                            .lock()
+                                            .unwrap()
+                                            .privmsg_callback
+                                            .as_ref()
+                                            .unwrap()(
+                                            create_twitch_connection!(
+                                                stream_int_callback,
+                                                callbacks_int
+                                            ),
+                                            &message,
+                                        );
                                     }
                                 }
-                                "PING" => {}
+                                "PING" => {
+                                    if callbacks_int.lock().unwrap().ping_callback.is_some() {
+                                        callbacks_int
+                                            .lock()
+                                            .unwrap()
+                                            .ping_callback
+                                            .as_ref()
+                                            .unwrap()(
+                                            create_twitch_connection!(
+                                                stream_int_callback,
+                                                callbacks_int
+                                            ),
+                                            &message,
+                                        );
+                                    }
+                                }
+                                "WHISPER" => {
+                                    if callbacks_int.lock().unwrap().whisper_callback.is_some() {
+                                        callbacks_int
+                                            .lock()
+                                            .unwrap()
+                                            .whisper_callback
+                                            .as_ref()
+                                            .unwrap()(
+                                            create_twitch_connection!(
+                                                stream_int_callback,
+                                                callbacks_int
+                                            ),
+                                            &message,
+                                        );
+                                    }
+                                }
                                 _ => {}
                             }
                         }
@@ -158,14 +222,14 @@ pub fn run(config: Config) {
     }
     twitch.keep_alive(60.0);
 
-    twitch.callbacks.lock().unwrap().privmsg_callback = Some(my_privmsg_callback);
-    twitch.callbacks.lock().unwrap().custom_callback = Some(my_custom_callback);
-    twitch.callbacks.lock().unwrap().whisper_callback = Some(my_whisper_callback);
+    // twitch.callbacks.lock().unwrap().privmsg_callback = Some(my_privmsg_callback);
+    // twitch.callbacks.lock().unwrap().custom_callback = Some(my_custom_callback);
+    // twitch.callbacks.lock().unwrap().whisper_callback = Some(my_whisper_callback);
     twitch.callbacks.lock().unwrap().ping_callback = Some(my_ping_callback);
 }
 
-fn my_privmsg_callback(payload: &IRCMessage) {
-    println!("[BOT] External callback {}", payload.message)
+fn my_privmsg_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
+    println!("[BOT] External callback privmsg {}", payload.message)
 }
 
 fn my_custom_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
@@ -178,10 +242,10 @@ fn my_custom_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
     }
 }
 
-fn my_whisper_callback(payload: &IRCMessage) {
-    println!("[BOT] External callback {}", payload.message)
+fn my_whisper_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
+    println!("[BOT] External callback whisper {}", payload.message)
 }
 
-fn my_ping_callback(payload: &str) {
-    println!("[BOT] External callback {}", payload)
+fn my_ping_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
+    println!("[BOT] External callback ping  {:#?}", payload)
 }
