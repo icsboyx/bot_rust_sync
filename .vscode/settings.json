@@ -1,0 +1,9 @@
+{
+    "cSpell.words": [
+        "nonblocking",
+        "PRIVMSG"
+    ],
+    "rust-analyzer.linkedProjects": [
+        "./Cargo.toml"
+    ]
+}

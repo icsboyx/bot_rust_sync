@@ -1,0 +1,21 @@
+{
+    "application": {
+        "log_level": "Trace"
+    },
+    "sever": {
+        "address": "irc.chat.twitch.tv",
+        "port": 6667,
+        "ssl_tls": false,
+        "ssl_verify_mode": false
+    },
+    "user": {
+        "token": "yourtockentfromtwitch",
+        "nickname": "botonex",
+        "main_channel": "icsboyx",
+        "channels": [
+            "icsboyx",
+            "profandreapollini",
+            "memmo_twitch"
+        ]
+    }
+}
