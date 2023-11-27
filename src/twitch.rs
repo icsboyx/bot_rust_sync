@@ -72,7 +72,7 @@ impl TwitchConnection {
                 match reader.read(&mut buffer) {
                     Ok(n) if n > 0 => {
                         for line in String::from_utf8_lossy(&buffer[0..n - 2]).split("\r\n") {
-                            println!(" [Twitch] RAW: {}", line);
+                            println!("[Twitch] RAW: {}", line);
                             let message = Self::parse_twitch_message(line);
 
                             if callbacks_int.lock().unwrap().custom_callback.is_some() {
@@ -140,7 +140,7 @@ impl TwitchConnection {
                         }
                     }
                     Err(e) => {
-                        println!(" [Twitch] Error: {}", e);
+                        println!("[Twitch] Error: {}", e);
                         break;
                     }
                     _ => {}
@@ -158,7 +158,7 @@ impl TwitchConnection {
     }
 
     fn send_message(&mut self, message: &str) {
-        println!(" [BOT] Sending: {}", message);
+        println!("[BOT] Sending: {}", message);
         let _ = self
             .stream
             .write(format!("{}\n\r", message).as_bytes())
@@ -168,7 +168,7 @@ impl TwitchConnection {
     fn keep_alive(&mut self, interval: f32) {
         let mut stream = self.stream.try_clone().unwrap();
         thread::spawn(move || loop {
-            println!(" [BOT] Sending: PING");
+            println!("[BOT] Sending: PING");
             stream.write_all("PING \r\n".as_bytes()).unwrap();
             thread::sleep(Duration::from_secs(interval as u64));
         });
@@ -207,8 +207,6 @@ impl TwitchConnection {
 
         msg.message = message_split.get(2).unwrap_or(&"".to_string()).to_owned();
 
-        println!(" [Twitch] Parsing: {:#?}", msg);
-
         msg
     }
 }
@@ -222,17 +220,18 @@ pub fn run(config: Config) {
     }
     twitch.keep_alive(60.0);
 
-    // twitch.callbacks.lock().unwrap().privmsg_callback = Some(my_privmsg_callback);
-    // twitch.callbacks.lock().unwrap().custom_callback = Some(my_custom_callback);
-    // twitch.callbacks.lock().unwrap().whisper_callback = Some(my_whisper_callback);
+    twitch.callbacks.lock().unwrap().privmsg_callback = Some(my_privmsg_callback);
+    twitch.callbacks.lock().unwrap().custom_callback = Some(my_custom_callback);
+    twitch.callbacks.lock().unwrap().whisper_callback = Some(my_whisper_callback);
     twitch.callbacks.lock().unwrap().ping_callback = Some(my_ping_callback);
 }
 
 fn my_privmsg_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
-    println!("[BOT] External callback privmsg {}", payload.message)
+    println!("[BOT] External callback privmsg {:?}", payload)
 }
 
 fn my_custom_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
+    println!("[BOT] External callback custom {:?}", payload);
     if payload.context.command == "PRIVMSG" && payload.message.starts_with("!Ciao") {
         let msg = format!(
             "PRIVMSG {} :Ciao @{}",
@@ -243,7 +242,7 @@ fn my_custom_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
 }
 
 fn my_whisper_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
-    println!("[BOT] External callback whisper {}", payload.message)
+    println!("[BOT] External callback whisper {:?}", payload)
 }
 
 fn my_ping_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
