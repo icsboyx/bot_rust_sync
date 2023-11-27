@@ -1,5 +1,4 @@
 mod config;
-use config::Config;
 mod twitch;
 use twitch::{IRCMessage, TwitchCapabilities, TwitchConnection};
 
@@ -42,7 +41,7 @@ fn main() {
 
 // Callback for PRIVMSG messages
 fn my_privmsg_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
-    println!("[BOT] External callback privmsg {:?}", payload)
+    println!("[BOT] External callback privmsg {:?}{:?}", twitch, payload)
 }
 
 // Callback for custom messages
@@ -60,10 +59,10 @@ fn my_custom_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
 
 // Callback for WHISPER messages
 fn my_whisper_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
-    println!("[BOT] External callback whisper {:?}", payload)
+    println!("[BOT] External callback privmsg {:?}{:?}", twitch, payload)
 }
 
 // Callback for PING messages
 fn my_ping_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
-    println!("[BOT] External callback ping  {:#?}", payload)
+    println!("[BOT] External callback privmsg {:?}{:?}", twitch, payload)
 }

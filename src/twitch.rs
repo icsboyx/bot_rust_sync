@@ -60,6 +60,7 @@ impl TwitchCapabilities {
 }
 
 // Struct to represent a connection to the Twitch server
+#[derive(Debug)]
 pub struct TwitchConnection {
     stream: TcpStream,
     pub callbacks: Arc<Mutex<TwitchCallbacks>>,
