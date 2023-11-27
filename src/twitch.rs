@@ -36,17 +36,6 @@ pub struct TwitchCallbacks {
     whisper_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
     custom_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
 }
-impl TwitchCallbacks {
-    fn iter(&self) -> impl Iterator<Item = &Option<fn(&mut TwitchConnection, &IRCMessage)>> {
-        vec![
-            &self.ping_callback,
-            &self.privmsg_callback,
-            &self.whisper_callback,
-            &self.custom_callback,
-        ]
-        .into_iter()
-    }
-}
 
 struct TwitchConnection {
     stream: TcpStream,
