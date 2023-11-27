@@ -1,10 +1,6 @@
-use serde::de::value::MapAccessDeserializer;
-use serde_json::error::Category;
-
 use crate::config::Config;
 use std::{
     io::{Read, Write},
-    mem::ManuallyDrop,
     net::TcpStream,
     sync::{Arc, Mutex},
     thread,
@@ -151,17 +147,6 @@ impl TwitchConnection {
 
         msg
     }
-    pub fn on_privmsg(&mut self, callback: fn(&IRCMessage)) {
-        self.callbacks.lock().unwrap().privmsg_callback = Some(callback);
-    }
-
-    pub fn custom_callback(&mut self, callback: fn(&mut TwitchConnection, &IRCMessage)) {
-        self.callbacks
-            .lock()
-            .unwrap()
-            .custom_callback
-            .replace(callback);
-    }
 }
 
 pub fn run(config: Config) {
@@ -173,12 +158,13 @@ pub fn run(config: Config) {
     }
     twitch.keep_alive(60.0);
 
-    twitch.on_privmsg(may_on_privmsg);
-
-    twitch.custom_callback(my_custom_callback);
+    twitch.callbacks.lock().unwrap().privmsg_callback = Some(may_privmsg_callback);
+    twitch.callbacks.lock().unwrap().custom_callback = Some(my_custom_callback);
+    twitch.callbacks.lock().unwrap().whisper_callback = Some(may_whisper_callback);
+    twitch.callbacks.lock().unwrap().ping_callback = Some(may_ping_callback);
 }
 
-fn may_on_privmsg(payload: &IRCMessage) {
+fn may_privmsg_callback(payload: &IRCMessage) {
     println!("[BOT] External callback {}", payload.message)
 }
 
@@ -190,4 +176,12 @@ fn my_custom_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
         );
         twitch.send_message(&msg);
     }
+}
+
+fn may_whisper_callback(payload: &IRCMessage) {
+    println!("[BOT] External callback {}", payload.message)
+}
+
+fn may_ping_callback(payload: &str) {
+    println!("[BOT] External callback {}", payload)
 }

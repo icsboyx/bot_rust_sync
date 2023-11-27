@@ -1,6 +1,5 @@
 mod config;
 mod twitch;
-use config::*;
 
 fn main() {
     let config = config::load_config();
