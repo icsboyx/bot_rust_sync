@@ -30,6 +30,9 @@ Before running the bot, you need to set up the configuration. A template configu
 
     ```json
     {
+        "application": {
+            "log_level": "Trace"
+        },
         "server": {
             "address": "irc.chat.twitch.tv",
             "port": 6667
