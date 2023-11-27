@@ -17,48 +17,48 @@ use std::{
 };
 
 #[derive(Debug, Default)]
-struct Context {
-    sender: String,
-    command: String,
-    receiver: String,
+pub struct Context {
+    pub sender: String,
+    pub command: String,
+    pub receiver: String,
 }
 
 #[derive(Debug, Default)]
-struct IRCMessage {
-    tags: String,
-    context: Context,
-    message: String,
+pub struct IRCMessage {
+    pub tags: String,
+    pub context: Context,
+    pub message: String,
 }
 #[derive(Debug, Default)]
 pub struct TwitchCallbacks {
-    ping_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
-    privmsg_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
-    whisper_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
-    custom_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
+    pub ping_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
+    pub privmsg_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
+    pub whisper_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
+    pub custom_callback: Option<fn(&mut TwitchConnection, &IRCMessage)>,
 }
 
-enum TwitchCapabilitiesEnum {
+pub enum TwitchCapabilities {
     Tags,
     Commands,
     Membership,
 }
-impl TwitchCapabilitiesEnum {
+impl TwitchCapabilities {
     fn request(&self) -> String {
         match self {
-            TwitchCapabilitiesEnum::Tags => "CAP REQ :twitch.tv/tags".to_string(),
-            TwitchCapabilitiesEnum::Commands => "CAP REQ :twitch.tv/commands".to_string(),
-            TwitchCapabilitiesEnum::Membership => "CAP REQ :twitch.tv/membership".to_string(),
+            TwitchCapabilities::Tags => "CAP REQ :twitch.tv/tags".to_string(),
+            TwitchCapabilities::Commands => "CAP REQ :twitch.tv/commands".to_string(),
+            TwitchCapabilities::Membership => "CAP REQ :twitch.tv/membership".to_string(),
         }
     }
 }
 
-struct TwitchConnection {
+pub struct TwitchConnection {
     stream: TcpStream,
-    callbacks: Arc<Mutex<TwitchCallbacks>>,
+    pub callbacks: Arc<Mutex<TwitchCallbacks>>,
 }
 
 impl TwitchConnection {
-    fn new(server_address: String) -> Self {
+    pub fn new(server_address: String) -> Self {
         let server_address_port = server_address.to_string();
         let stream = std::net::TcpStream::connect(server_address_port).unwrap();
         let stream_int = stream.try_clone().unwrap();
@@ -153,15 +153,15 @@ impl TwitchConnection {
         });
         Self { stream, callbacks }
     }
-    fn server_auth(&mut self, password: &str, username: &str) {
+    pub fn server_auth(&mut self, password: &str, username: &str) {
         self.send_message(format!("PASS oauth:{}", password).as_str());
         self.send_message(format!("NICK {}", username).as_str());
     }
-    fn join_channel(&mut self, channel: &str) {
+    pub fn join_channel(&mut self, channel: &str) {
         self.send_message(format!("JOIN #{}", channel).as_str());
     }
 
-    fn send_message(&mut self, message: &str) {
+    pub fn send_message(&mut self, message: &str) {
         println!("[BOT] Sending: {}", message);
         let _ = self
             .stream
@@ -169,7 +169,7 @@ impl TwitchConnection {
             .unwrap();
     }
 
-    fn keep_alive(&mut self, interval: f32) {
+    pub fn keep_alive(&mut self, interval: f32) {
         let mut stream = self.stream.try_clone().unwrap();
         thread::spawn(move || loop {
             println!("[BOT] Sending: PING");
@@ -227,54 +227,9 @@ impl TwitchConnection {
 
         msg
     }
-    fn request_capabilities(&mut self, capabilities: Vec<TwitchCapabilitiesEnum>) {
+    pub fn request_capabilities(&mut self, capabilities: Vec<TwitchCapabilities>) {
         for capability in capabilities.iter() {
             self.send_message(capability.request().as_str());
         }
     }
-}
-
-pub fn run(config: Config) {
-    let server_address = format!("{}:{}", config.sever.address, config.sever.port);
-    let mut twitch = TwitchConnection::new(server_address);
-    twitch.server_auth(config.user.token.as_str(), config.user.nickname.as_str());
-    for channel in config.user.channels.iter() {
-        twitch.join_channel(channel.as_str());
-    }
-
-    twitch.request_capabilities(vec![
-        TwitchCapabilitiesEnum::Tags,
-        TwitchCapabilitiesEnum::Commands,
-        TwitchCapabilitiesEnum::Membership,
-    ]);
-
-    twitch.keep_alive(60.0);
-
-    twitch.callbacks.lock().unwrap().privmsg_callback = Some(my_privmsg_callback);
-    twitch.callbacks.lock().unwrap().custom_callback = Some(my_custom_callback);
-    twitch.callbacks.lock().unwrap().whisper_callback = Some(my_whisper_callback);
-    twitch.callbacks.lock().unwrap().ping_callback = Some(my_ping_callback);
-}
-
-fn my_privmsg_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
-    println!("[BOT] External callback privmsg {:?}", payload)
-}
-
-fn my_custom_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
-    println!("[BOT] External callback custom {:?}", payload);
-    if payload.context.command == "PRIVMSG" && payload.message.starts_with("!Ciao") {
-        let msg = format!(
-            "PRIVMSG {} :Ciao @{}",
-            payload.context.receiver, payload.context.sender
-        );
-        twitch.send_message(&msg);
-    }
-}
-
-fn my_whisper_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
-    println!("[BOT] External callback whisper {:?}", payload)
-}
-
-fn my_ping_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
-    println!("[BOT] External callback ping  {:#?}", payload)
 }
