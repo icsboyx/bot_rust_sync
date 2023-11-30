@@ -8,7 +8,12 @@ fn main() {
 
     // Create a new TwitchConnection
     let server_address = format!("{}:{}", config.sever.address, config.sever.port);
-    let mut twitch = TwitchConnection::new(server_address);
+    let mut twitch = TwitchConnection::new(
+        server_address,
+        config.sever.ssl_tls,
+        config.sever.ssl_verify_mode,
+    );
+
     // Authenticate with the server
     twitch.server_auth(config.user.token.as_str(), config.user.nickname.as_str());
 
@@ -19,13 +24,13 @@ fn main() {
 
     // Request certain capabilities from the server
     twitch.request_capabilities(vec![
-        TwitchCapabilities::Tags,
+        // TwitchCapabilities::Tags,
         TwitchCapabilities::Commands,
-        TwitchCapabilities::Membership,
+        // TwitchCapabilities::Membership,
     ]);
 
     // Start the keep-alive thread
-    twitch.keep_alive(60.0);
+    // twitch.keep_alive(60.0);
 
     // Set the callbacks
     twitch.callbacks.lock().unwrap().privmsg_callback = Some(my_privmsg_callback);
