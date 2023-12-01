@@ -29,20 +29,27 @@ Before running the bot, you need to set up the configuration. A template configu
 2. **Update the Configuration**: Open `config.json` in a text editor. You'll see something like this:
 
     ```json
-    {
-        "application": {
-            "log_level": "Trace"
-        },
-        "server": {
-            "address": "irc.chat.twitch.tv",
-            "port": 6667
-        },
-        "user": {
-            "token": "your-token-here",
-            "nickname": "your-nickname-here",
-            "channels": ["channel1", "channel2"]
+        {
+            "application": {
+                "log_level": "Trace"
+            },
+            "sever": {
+                "address": "irc.chat.twitch.tv",
+                "port": 6697,
+                "ssl_tls": true,
+                "ssl_verify_mode": true
+            },
+            "user": {
+                "token": "your-token-here",
+                "nickname": "your-nickname-here",
+                "main_channel": "channel1",
+                "channels": [
+                    "channel1",
+                    "channel2",
+                    "channel3"
+                ]
+            }
         }
-    }
     ```
 
     Replace `"your-token-here"` with your Twitch token, `"your-nickname-here"` with your Twitch nickname, and `["channel1", "channel2"]` with a list of channels you want the bot to join.
