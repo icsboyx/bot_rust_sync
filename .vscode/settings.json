@@ -1,8 +1,11 @@
 {
     "cSpell.words": [
+        "Memmo",
         "nonblocking",
+        "Pollini",
         "PRIVMSG",
-        "sslverify"
+        "sslverify",
+        "Twich"
     ],
     "rust-analyzer.linkedProjects": [
         "./Cargo.toml"

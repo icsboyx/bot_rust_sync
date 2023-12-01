@@ -101,8 +101,8 @@ Contributions are welcome! If you find a bug or want to add new features, feel f
 
 This project was inspired by the Twitch channel of:\
 ![Prof. Andrea Pollini](https://static-cdn.jtvnw.net/jtv_user_pictures/b4199595-d595-4788-9f04-f4aa370e902a-profile_image-70x70.png)[Prof. Andrea Pollini](https://www.twitch.tv/profandreapollini),\
-![Memmo_Twich](https://static-cdn.jtvnw.net/jtv_user_pictures/93321124-9685-4bf5-9abd-85967497553f-profile_image-70x70.png)
-[Memmo_Twich](https://www.twitch.tv/memmo_twitch)\
+![Memmo_Twitch](https://static-cdn.jtvnw.net/jtv_user_pictures/93321124-9685-4bf5-9abd-85967497553f-profile_image-70x70.png)
+[Memmo_Twitch](https://www.twitch.tv/memmo_twitch)\
 and  the supportive Twitch community. Thanks to their encouragement and feedback!
 
 
