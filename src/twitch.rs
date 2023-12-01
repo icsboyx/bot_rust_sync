@@ -9,7 +9,6 @@ macro_rules! create_twitch_connection {
 }
 
 use std::{
-    any::Any,
     fmt::Debug,
     io::{Read, Write},
     net::TcpStream,
@@ -19,26 +18,6 @@ use std::{
 };
 
 use openssl::ssl::{SslConnector, SslMethod, SslStream};
-trait CustDynTrait: Read + Write + Debug + Send + Sync {}
-impl<T: Read + Write + Debug + Send + Sync> CustDynTrait for T {}
-
-#[derive(Clone, Debug)]
-enum CustomStreamType {
-    TcpStream(Arc<Mutex<dyn CustDynTrait>>),
-    SslStream(Arc<Mutex<dyn CustDynTrait>>),
-}
-
-impl CustomStreamType {
-    fn gett_inner(&self) -> &Arc<Mutex<dyn CustDynTrait>> {
-        match self {
-            CustomStreamType::TcpStream(stream) => stream,
-            CustomStreamType::SslStream(stream) => stream,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct CustomStream(CustomStreamType);
 
 // Struct to represent the context of a message
 #[derive(Debug, Default)]
@@ -82,11 +61,17 @@ impl TwitchCapabilities {
         }
     }
 }
+trait CustomStreamTrait: Read + Write + Sync + Send + Debug {}
+impl CustomStreamTrait for TcpStream {}
+impl CustomStreamTrait for SslStream<TcpStream> {}
+
+#[derive(Debug)]
+struct Streams(Box<dyn CustomStreamTrait>);
 
 // Struct to represent a connection to the Twitch server
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TwitchConnection {
-    stream: CustomStreamType,
+    stream: Arc<Mutex<Streams>>,
     pub callbacks: Arc<Mutex<TwitchCallbacks>>,
 }
 impl TwitchConnection {
@@ -95,38 +80,37 @@ impl TwitchConnection {
         let server_address_port = server_address.to_string();
         let tcp_stream = std::net::TcpStream::connect(server_address_port).unwrap();
 
-        let stream = if tls {
-            let mut sslconnection = SslConnector::builder(SslMethod::tls()).unwrap();
+        let streams = if tls {
+            let mut ssl_connection = SslConnector::builder(SslMethod::tls()).unwrap();
             if !sslverify {
-                sslconnection.set_verify(openssl::ssl::SslVerifyMode::NONE);
+                ssl_connection.set_verify(openssl::ssl::SslVerifyMode::NONE);
             }
-            let sslconnection = sslconnection.build();
-            let ssl_stream = sslconnection
+            let ssl_connection = ssl_connection.build();
+            let ssl_stream = ssl_connection
                 .connect("irc.chat.twitch.tv", tcp_stream.try_clone().unwrap())
                 .unwrap();
             ssl_stream.get_ref().set_nonblocking(true).unwrap();
-            CustomStreamType::SslStream(Arc::new(Mutex::new(ssl_stream)))
+            Streams(Box::new(ssl_stream))
         } else {
+            println!("########################\r\n Clear Mode\r\n########################");
             tcp_stream.set_nonblocking(true).unwrap();
-            CustomStreamType::TcpStream(Arc::new(Mutex::new(tcp_stream)))
+            Streams(Box::new(tcp_stream))
         };
 
         // Clone the stream for use in the callback thread
-        let stream_int = stream.clone();
+        let stream_int = Arc::new(Mutex::new(streams));
+        let stream_ret = stream_int.clone();
+
         // Create a new TwitchCallbacks object with default values
         let callbacks = Arc::new(Mutex::new(TwitchCallbacks {
             ..Default::default()
         }));
-
-        // Clone the stream and callbacks for use in the callback thread
-        let stream_int_callback = stream_int.clone();
         let callbacks_int = callbacks.clone();
 
-        // Spawn a new thread to handle incoming messages from the server
         thread::spawn(move || {
             let mut buffer = vec![0; 1024];
             loop {
-                match stream_int.gett_inner().lock().unwrap().read(&mut buffer) {
+                match stream_int.lock().unwrap().0.read(&mut buffer) {
                     Ok(n) if n > 0 => {
                         // Process each line received from the server
                         for line in String::from_utf8_lossy(&buffer[0..n - 2]).split("\r\n") {
@@ -142,7 +126,7 @@ impl TwitchConnection {
                                     .custom_callback
                                     .as_ref()
                                     .unwrap()(
-                                    create_twitch_connection!(stream_int_callback, callbacks_int),
+                                    create_twitch_connection!(stream_int, callbacks_int),
                                     &message,
                                 );
                             }
@@ -157,10 +141,7 @@ impl TwitchConnection {
                                             .privmsg_callback
                                             .as_ref()
                                             .unwrap()(
-                                            create_twitch_connection!(
-                                                stream_int_callback,
-                                                callbacks_int
-                                            ),
+                                            create_twitch_connection!(stream_int, callbacks_int),
                                             &message,
                                         );
                                     }
@@ -174,10 +155,7 @@ impl TwitchConnection {
                                             .ping_callback
                                             .as_ref()
                                             .unwrap()(
-                                            create_twitch_connection!(
-                                                stream_int_callback,
-                                                callbacks_int
-                                            ),
+                                            create_twitch_connection!(stream_int, callbacks_int),
                                             &message,
                                         );
                                     }
@@ -191,10 +169,7 @@ impl TwitchConnection {
                                             .whisper_callback
                                             .as_ref()
                                             .unwrap()(
-                                            create_twitch_connection!(
-                                                stream_int_callback,
-                                                callbacks_int
-                                            ),
+                                            create_twitch_connection!(stream_int, callbacks_int),
                                             &message,
                                         );
                                     }
@@ -205,9 +180,7 @@ impl TwitchConnection {
                     }
                     Err(e) => {
                         match e.kind() {
-                            std::io::ErrorKind::WouldBlock => {
-                                thread::sleep(Duration::from_millis(100));
-                            }
+                            std::io::ErrorKind::WouldBlock => {}
 
                             _ => {
                                 // Print any errors that occur
@@ -218,11 +191,12 @@ impl TwitchConnection {
                     }
                     _ => {}
                 }
+                thread::sleep(Duration::from_millis(5));
             }
         });
         // Return a new TwitchConnection object
         Self {
-            stream: stream.clone(),
+            stream: stream_ret,
             callbacks,
         }
     }
@@ -240,13 +214,17 @@ impl TwitchConnection {
     pub fn send_message(&mut self, message: &str) {
         // Print the message to the console and send it to the server
         println!("[BOT] Sending: {}", message);
-        let _ = self
-            .stream
-            .gett_inner()
-            .lock()
-            .unwrap()
-            .write(format!("{}\n\r", message).as_bytes())
-            .unwrap();
+        let stream_int = self.clone();
+        let message_int = message.to_string();
+        thread::spawn(move || {
+            stream_int
+                .stream
+                .lock()
+                .unwrap()
+                .0
+                .write_all(format!("{}\r\n", message_int).as_bytes())
+                .unwrap()
+        });
     }
 
     pub fn keep_alive(&mut self, interval: f32) {
@@ -255,9 +233,9 @@ impl TwitchConnection {
         thread::spawn(move || loop {
             println!("[BOT] Sending: PING");
             stream
-                .gett_inner()
                 .lock()
                 .unwrap()
+                .0
                 .write_all("PING \r\n".as_bytes())
                 .unwrap();
             thread::sleep(Duration::from_secs(interval as u64));
