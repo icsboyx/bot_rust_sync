@@ -81,6 +81,7 @@ impl TwitchConnection {
         let tcp_stream = std::net::TcpStream::connect(server_address_port).unwrap();
 
         let streams = if tls {
+            println!("########################\r\n TLS Mode\r\n########################");
             let mut ssl_connection = SslConnector::builder(SslMethod::tls()).unwrap();
             if !sslverify {
                 ssl_connection.set_verify(openssl::ssl::SslVerifyMode::NONE);
