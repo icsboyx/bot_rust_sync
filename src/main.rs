@@ -1,5 +1,6 @@
 mod config;
 mod twitch;
+use colored::Colorize;
 use twitch::{IRCMessage, TwitchCapabilities, TwitchConnection};
 
 fn main() {
@@ -51,7 +52,11 @@ fn my_privmsg_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
 
 // Callback for custom messages
 fn my_custom_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
-    println!("[BOT] External callback custom {:?}", payload);
+    println!(
+        "{} {:?}",
+        "[BOT] External callback custom ".yellow(),
+        payload
+    );
     // If the message is a PRIVMSG that starts with "!Ciao", send a response
     if payload.context.command == "PRIVMSG" && payload.message.starts_with("!Ciao") {
         let msg = format!(

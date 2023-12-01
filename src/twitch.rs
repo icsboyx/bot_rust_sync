@@ -8,6 +8,7 @@ macro_rules! create_twitch_connection {
     };
 }
 
+use colored::Colorize;
 use std::{
     fmt::Debug,
     io::{Read, Write},
@@ -81,7 +82,10 @@ impl TwitchConnection {
         let tcp_stream = std::net::TcpStream::connect(server_address_port).unwrap();
 
         let streams = if tls {
-            println!("########################\r\n TLS Mode\r\n########################");
+            println!(
+                "{}",
+                "########################\r\n TLS Mode\r\n########################".green()
+            );
             let mut ssl_connection = SslConnector::builder(SslMethod::tls()).unwrap();
             if !sslverify {
                 ssl_connection.set_verify(openssl::ssl::SslVerifyMode::NONE);
@@ -93,7 +97,10 @@ impl TwitchConnection {
             ssl_stream.get_ref().set_nonblocking(true).unwrap();
             Streams(Box::new(ssl_stream))
         } else {
-            println!("########################\r\n Clear Mode\r\n########################");
+            println!(
+                "{}",
+                "########################\r\n Clear Mode\r\n########################".red()
+            );
             tcp_stream.set_nonblocking(true).unwrap();
             Streams(Box::new(tcp_stream))
         };
@@ -115,7 +122,7 @@ impl TwitchConnection {
                     Ok(n) if n > 0 => {
                         // Process each line received from the server
                         for line in String::from_utf8_lossy(&buffer[0..n - 2]).split("\r\n") {
-                            println!("[Twitch] RAW: {}", line);
+                            println!("{} {}", "[Twitch] RAW: ".blue(), line);
                             // Parse the line into an IRCMessage
                             let message = Self::parse_twitch_message(line);
 
@@ -185,7 +192,7 @@ impl TwitchConnection {
 
                             _ => {
                                 // Print any errors that occur
-                                println!("[Twitch] Error: {}", e.kind());
+                                println!("{} {}", "[Twitch] Error: {}".red(), e.kind());
                                 break;
                             }
                         }
@@ -214,7 +221,7 @@ impl TwitchConnection {
 
     pub fn send_message(&mut self, message: &str) {
         // Print the message to the console and send it to the server
-        println!("[BOT] Sending: {}", message);
+        println!("{} {}", "[BOT] Sending: {}".green(), message);
         let stream_int = self.clone();
         let message_int = message.to_string();
         thread::spawn(move || {
@@ -232,7 +239,7 @@ impl TwitchConnection {
         // Clone the stream and spawn a new thread to send PING messages to the server at regular intervals
         let stream = self.stream.clone();
         thread::spawn(move || loop {
-            println!("[BOT] Sending: PING");
+            println!("{}", "[BOT] Sending: PING".green());
             stream
                 .lock()
                 .unwrap()
