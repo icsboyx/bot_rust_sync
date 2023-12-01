@@ -62,11 +62,17 @@ impl TwitchCapabilities {
         }
     }
 }
+// Trait to define a custom stream with Read, Write, Sync, Send, and Debug capabilities
 trait CustomStreamTrait: Read + Write + Sync + Send + Debug {}
+
+// Implement CustomStreamTrait for TcpStream
 impl CustomStreamTrait for TcpStream {}
+
+// Implement CustomStreamTrait for SslStream<TcpStream>
 impl CustomStreamTrait for SslStream<TcpStream> {}
 
 #[derive(Debug)]
+// Define a struct `Streams` that wraps a boxed dynamic trait object `CustomStreamTrait`
 struct Streams(Box<dyn CustomStreamTrait>);
 
 // Struct to represent a connection to the Twitch server
@@ -79,34 +85,45 @@ impl TwitchConnection {
     pub fn new(server_address: String, tls: bool, sslverify: bool) -> Self {
         // Convert server address to string and append port
         let server_address_port = server_address.to_string();
+        // Connect to the Twitch server using the provided server address and port
         let tcp_stream = std::net::TcpStream::connect(server_address_port).unwrap();
 
+        // Check if TLS mode is enabled
         let streams = if tls {
             println!(
                 "{}",
                 "########################\r\n TLS Mode\r\n########################".green()
             );
+            // Create an SSL connector with TLS method
             let mut ssl_connection = SslConnector::builder(SslMethod::tls()).unwrap();
+            // Disable SSL verification if sslverify is false
             if !sslverify {
                 ssl_connection.set_verify(openssl::ssl::SslVerifyMode::NONE);
             }
+            // Build the SSL connector
             let ssl_connection = ssl_connection.build();
+            // Establish an SSL connection with the Twitch server
             let ssl_stream = ssl_connection
                 .connect("irc.chat.twitch.tv", tcp_stream.try_clone().unwrap())
                 .unwrap();
+            // Set the SSL stream to non-blocking mode
             ssl_stream.get_ref().set_nonblocking(true).unwrap();
+            // Wrap the SSL stream in a Streams struct and box it
             Streams(Box::new(ssl_stream))
         } else {
             println!(
                 "{}",
                 "########################\r\n Clear Mode\r\n########################".red()
             );
+            // Set the TCP stream to non-blocking mode
             tcp_stream.set_nonblocking(true).unwrap();
+            // Wrap the TCP stream in a Streams struct and box it
             Streams(Box::new(tcp_stream))
         };
 
-        // Clone the stream for use in the callback thread
+        // Clone the stream for use in the internal thread
         let stream_int = Arc::new(Mutex::new(streams));
+        // Clone the stream for use as return value
         let stream_ret = stream_int.clone();
 
         // Create a new TwitchCallbacks object with default values
