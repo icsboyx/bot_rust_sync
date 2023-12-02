@@ -5,7 +5,9 @@
         "Pollini",
         "PRIVMSG",
         "sslverify",
-        "Twich"
+        "Twich",
+        "ureq",
+        "urlencoding"
     ],
     "rust-analyzer.linkedProjects": [
         "./Cargo.toml"

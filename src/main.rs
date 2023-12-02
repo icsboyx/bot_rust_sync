@@ -1,6 +1,10 @@
+mod audio;
 mod config;
+mod tts;
 mod twitch;
+use audio::play;
 use colored::Colorize;
+use tts::tts;
 use twitch::{IRCMessage, TwitchCapabilities, TwitchConnection};
 
 fn main() {
@@ -39,6 +43,7 @@ fn main() {
     twitch.callbacks.lock().unwrap().whisper_callback = Some(my_whisper_callback);
     twitch.callbacks.lock().unwrap().ping_callback = Some(my_ping_callback);
 
+    play();
     // Main loop
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
@@ -47,7 +52,11 @@ fn main() {
 
 // Callback for PRIVMSG messages
 fn my_privmsg_callback(twitch: &mut TwitchConnection, payload: &IRCMessage) {
-    println!("[BOT] External callback privmsg {:?}{:?}", twitch, payload)
+    println!("[BOT] External callback privmsg {:?}{:?}", twitch, payload);
+    if payload.context.receiver == "#icsboyx" {
+        let audio = tts(payload.message.clone());
+        println!("[BOT] Audio: {:?}", audio)
+    }
 }
 
 // Callback for custom messages
